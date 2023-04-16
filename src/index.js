@@ -1,5 +1,6 @@
 const axios = require("axios");
 const fs = require("fs");
+const retry = require("async-retry");
 
 const { setIntervalAsync } = require("set-interval-async");
 const { clearIntervalAsync } = require("set-interval-async/dynamic");
@@ -17,11 +18,40 @@ const githubToken =
   "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";
 // 需要同步的 GitHub 用户名和 API 地址
 const githubUsername = process.env.GITHUB_USERNAME || "guqing";
-const githubEventUrl = `https://api.github.com/users/${githubUsername}/events/public`;
+const githubEventUrl = `https://api.github.com/users/${githubUsername}/events/public?per_page=5`;
 const eventsStateConfigMapName = "configmap-github-user-events-state";
+
+async function updateEventStateConfigMap(isoDateString) {
+  return await retry(
+    async (bail) => {
+      let configMap = await fetchConfigMap(eventsStateConfigMapName);
+      if (configMap === null) {
+        throw new Error(
+          `ConfigMap ${eventsStateConfigMapName} not found, please create it first.`
+        );
+      }
+      configMap.data["last-time-created-event"] = isoDateString;
+      try {
+        const { data } = await axios.put(
+          `${haloUrl}/api/v1alpha1/configmaps/${eventsStateConfigMapName}`,
+          configMap,
+          { ...haloRequestOptions() }
+        );
+        return data;
+      } catch (error) {
+        bail(new Error(error));
+        return null;
+      }
+    },
+    {
+      retries: 10,
+    }
+  );
+}
 
 // 定义同步函数，将数据发送到目标服务
 async function syncData(data) {
+  await createEventStateConfigMapIfAbsent();
   try {
     const moments = transformWrappeEventToMoment(data || []);
     for (const moment of moments) {
@@ -31,7 +61,7 @@ async function syncData(data) {
         { ...haloRequestOptions() }
       );
 
-      const updateLastProcessedTime = saveLastProcessedTime(
+      const updateLastProcessedTime = updateEventStateConfigMap(
         moment.spec.releaseTime
       );
       const values = await Promise.all([createMoment, updateLastProcessedTime]);
@@ -48,6 +78,7 @@ async function syncData(data) {
 
 // 定义轮询函数
 async function pollData() {
+  console.info('Fetch github user public events...')
   try {
     const response = await axios.get(githubEventUrl, {
       headers: {
@@ -105,30 +136,29 @@ async function fetchConfigMap(name) {
   }
 }
 
-async function saveLastProcessedTime(isoDateString) {
+async function createEventStateConfigMapIfAbsent() {
   let configMap = await fetchConfigMap(eventsStateConfigMapName);
-  if (configMap === null) {
-    try {
-      const { data } = await axios.post(
-        `${haloUrl}/api/v1alpha1/configmaps`,
-        {
-          apiVersion: "v1alpha1",
-          kind: "ConfigMap",
-          metadata: {
-            name: eventsStateConfigMapName,
-          },
-          data: {
-            "last-time-created-event": isoDateString,
-          },
+  if (configMap != null) {
+    return configMap;
+  }
+  try {
+    const { data } = await axios.post(
+      `${haloUrl}/api/v1alpha1/configmaps`,
+      {
+        apiVersion: "v1alpha1",
+        kind: "ConfigMap",
+        metadata: {
+          name: eventsStateConfigMapName,
         },
-        { ...haloRequestOptions() }
-      );
-      configMap = data;
-    } catch (error) {
-      const errorJson = error.toJSON() || {};
-      if (errorJson.status !== 400) {
-        throw new Error(error);
-      }
+        data: {},
+      },
+      { ...haloRequestOptions() }
+    );
+    return data;
+  } catch (error) {
+    const errorJson = error?.toJSON() || {};
+    if (errorJson.status !== 400) {
+      throw new Error(error);
     }
   }
   return configMap;
@@ -148,7 +178,10 @@ function haloRequestOptions() {
 }
 
 function isDateAfter(githubDate, target) {
-  return new Date(new Date(githubDate).toISOString()).getTime() > new Date(target).getTime();
+  return (
+    new Date(new Date(githubDate).toISOString()).getTime() >
+    new Date(target).getTime()
+  );
 }
 
 // 启动轮询任务
