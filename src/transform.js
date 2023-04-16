@@ -1,6 +1,7 @@
 const md = require("markdown-it")({
   html: true,
   linkify: true,
+  breaks: true,
 });
 
 const transformGitHubEventData = function (events) {
@@ -146,15 +147,20 @@ const transformGitHubEventData = function (events) {
           title = `${displayLogin} pushed to ${event.payload.ref
             .split("/")
             .pop()} in ${wrapRepo(event.repo)}`;
-          content = "Below is the list of commits:\n" + event.payload.commits
-            .map((commit) => {
-              const prefix = 'https://api.github.com/repos/'
-              const htmlUrl = `https://github.com/${commit.url.slice(prefix.length)}`
-              const commitSha = `[${commit.sha.slice(0, 7)}](${htmlUrl})`
-              console.log('commit:', commitSha)
-              return `- ${commit.message} (${commitSha})`;
-            })
-            .join("\n");
+          content =
+            "Below is the list of commits:\n" +
+            event.payload.commits
+              .map((commit) => {
+                const prefix = "https://api.github.com/repos/";
+                const htmlUrl = `https://github.com/${commit.url.slice(
+                  prefix.length
+                )}`;
+                const commitSha = `[${commit.sha.slice(0, 7)}](${htmlUrl})`;
+                const commitMessage = getFirstLine(commit.message);
+                console.log("commit:", commitMessage);
+                return `- ${commitMessage} (${commitSha})`;
+              })
+              .join("\n");
           break;
         case "ReleaseEvent":
           title = `${displayLogin} ${event.payload.action} release ${
@@ -205,7 +211,8 @@ function repoToContent(event) {
   if (!event.repo) {
     return "";
   }
-  return `#### [${event.repo.name}](${event.repo.url})\r\n${
+  const repoUrl = `https://github.com/${event.repo.name}`;
+  return `#### [${event.repo.name}](${repoUrl})\r\n${
     event.payload?.description || ""
   }`;
 }
@@ -214,20 +221,20 @@ function wrapRepo(repo) {
   if (!repo) {
     return "";
   }
-  return `<a href="https://github.com/${repo.name}">${repo.name}</a>`;
+  return `<a href="https://github.com/${repo.name}" target="_blank" rel="noopener">${repo.name}</a>`;
 }
 function wrapPR(pull_request) {
   if (!pull_request) {
     return "";
   }
-  return `<a href="${pull_request.html_url}" title="${pull_request.title}">#${pull_request.number}</a>`;
+  return `<a href="${pull_request.html_url}" title="${pull_request.title}" target="_blank" rel="noopener">#${pull_request.number}</a>`;
 }
 
 function wrapIssue(issue) {
   if (!issue) {
     return "";
   }
-  return `<a href="${issue.html_url}" title="${issue.title}">#${issue.number}</a>`;
+  return `<a href="${issue.html_url}" title="${issue.title}" target="_blank" rel="noopener">#${issue.number}</a>`;
 }
 
 function transformWrappeEventToMoment(wrappedEvents) {
@@ -251,6 +258,14 @@ function transformWrappeEventToMoment(wrappedEvents) {
       apiVersion: "moment.halo.run/v1alpha1",
     };
   });
+}
+
+function getFirstLine(text) {
+  const index = text.indexOf('\n');
+  if (index !== -1) {
+    return text.substr(0, index);
+  }
+  return text;
 }
 
 module.exports = { transformGitHubEventData, transformWrappeEventToMoment };

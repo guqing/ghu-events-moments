@@ -18,7 +18,7 @@ const githubToken =
   "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";
 // 需要同步的 GitHub 用户名和 API 地址
 const githubUsername = process.env.GITHUB_USERNAME || "guqing";
-const githubEventUrl = `https://api.github.com/users/${githubUsername}/events/public?per_page=5`;
+const githubEventUrl = `https://api.github.com/users/${githubUsername}/events/public?per_page=30`;
 const eventsStateConfigMapName = "configmap-github-user-events-state";
 
 async function updateEventStateConfigMap(isoDateString) {
