@@ -1,5 +1,4 @@
 const axios = require("axios");
-const fs = require("fs");
 const retry = require("async-retry");
 
 const { setIntervalAsync } = require("set-interval-async");
@@ -9,16 +8,15 @@ const {
   transformWrappeEventToMoment,
 } = require("./transform");
 
-const haloUsername = process.env.HALO_USERNAME || "guqing";
-const haloPassword = process.env.HALO_PASSWORD || "123456";
-const haloUrl = process.env.HALO_URL || "http://127.0.0.1:8090";
+const haloUsername = process.env.HALO_USERNAME;
+const haloPassword = process.env.HALO_PASSWORD;
+const haloUrl = process.env.HALO_URL;
+const githubToken = process.env.GITHUB_TOKEN;
 
-const githubToken =
-  process.env.GITHUB_TOKEN ||
-  "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";
 // 需要同步的 GitHub 用户名和 API 地址
-const githubUsername = process.env.GITHUB_USERNAME || "guqing";
-const githubEventUrl = `https://api.github.com/users/${githubUsername}/events/public?per_page=30`;
+const githubUsername = process.env.GITHUB_USERNAME;
+
+const githubEventUrl = `https://api.github.com/users/${githubUsername}/events/public?per_page=100`;
 const eventsStateConfigMapName = "configmap-github-user-events-state";
 
 async function updateEventStateConfigMap(isoDateString) {
@@ -185,7 +183,7 @@ function isDateAfter(githubDate, target) {
 }
 
 // 启动轮询任务
-const pollInterval = 10 * 1000; // 轮询间隔为 1 分钟
+const pollInterval = 60 * 1000; // 轮询间隔为 10 分钟
 const pollTimer = setIntervalAsync(pollData, pollInterval);
 
 // 在程序退出时清除轮询任务

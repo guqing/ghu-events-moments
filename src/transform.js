@@ -191,7 +191,7 @@ const transformGitHubEventData = function (events) {
           content = null;
           break;
       }
-      if (content === null) {
+      if (title == null || content === null) {
         return null;
       }
       const created_at = event.created_at || new Date().toISOString();
