@@ -1,8 +1,7 @@
 const axios = require("axios");
 const retry = require("async-retry");
 
-const { setIntervalAsync } = require("set-interval-async");
-const { clearIntervalAsync } = require("set-interval-async/dynamic");
+var cron = require('node-cron');
 const {
   transformGitHubEventData,
   transformWrappeEventToMoment,
@@ -184,13 +183,7 @@ function isDateAfter(githubDate, target) {
   );
 }
 
-// 启动轮询任务
-const pollTimer = setIntervalAsync(pollData, pollInterval);
-
-// 在程序退出时清除轮询任务
-process.on("SIGINT", async () => {
-  console.log("Stopping poller...");
-  await clearIntervalAsync(pollTimer);
-  console.log("Poller stopped.");
-  process.exit();
+cron.schedule('* * * * *', async () => {
+  await pollData()
+  console.log('running a task every minute');
 });
