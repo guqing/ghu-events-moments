@@ -15,6 +15,8 @@ const githubToken = process.env.GITHUB_TOKEN;
 
 // 需要同步的 GitHub 用户名和 API 地址
 const githubUsername = process.env.GITHUB_USERNAME;
+// 轮询间隔，单位毫秒，默认 30 分钟
+const pollInterval = process.env.POLL_INTERVAL || 1000 * 60 * 30;
 
 const githubEventUrl = `https://api.github.com/users/${githubUsername}/events/public?per_page=100`;
 const eventsStateConfigMapName = "configmap-github-user-events-state";
@@ -76,7 +78,7 @@ async function syncData(data) {
 
 // 定义轮询函数
 async function pollData() {
-  console.info('Fetch github user public events...')
+  console.info("Fetch github user public events...");
   try {
     const response = await axios.get(githubEventUrl, {
       headers: {
@@ -183,7 +185,6 @@ function isDateAfter(githubDate, target) {
 }
 
 // 启动轮询任务
-const pollInterval = 60 * 1000; // 轮询间隔为 10 分钟
 const pollTimer = setIntervalAsync(pollData, pollInterval);
 
 // 在程序退出时清除轮询任务

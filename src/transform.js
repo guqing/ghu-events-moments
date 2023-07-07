@@ -144,9 +144,9 @@ const transformGitHubEventData = function (events) {
           content = event.payload.comment.body;
           break;
         case "PushEvent":
-          title = `${displayLogin} pushed to ${event.payload.ref
-            .split("/")
-            .pop()} in ${wrapRepo(event.repo)}`;
+          title = `${displayLogin} pushed to ${removeStart(event.payload.ref)} in ${wrapRepo(
+            event.repo
+          )}`;
           content =
             "Below is the list of commits:\n" +
             event.payload.commits
@@ -207,6 +207,16 @@ const transformGitHubEventData = function (events) {
     .filter((item) => item !== null);
 };
 
+function removeStart(str, prefix) {
+  if (!str) {
+    return str;
+  }
+  if (str.startsWith(prefix)) {
+    return str.substring(prefix.length);
+  }
+  return str;
+}
+
 function repoToContent(event) {
   if (!event.repo) {
     return "";
@@ -242,6 +252,7 @@ function transformWrappeEventToMoment(wrappedEvents) {
     return {
       spec: {
         content: { raw: `${item.raw}`, html: `${item.content}`, medium: [] },
+        tags: ["github-events"],
         releaseTime: new Date(item.created_at).toISOString(),
       },
       metadata: {
@@ -261,7 +272,7 @@ function transformWrappeEventToMoment(wrappedEvents) {
 }
 
 function getFirstLine(text) {
-  const index = text.indexOf('\n');
+  const index = text.indexOf("\n");
   if (index !== -1) {
     return text.substr(0, index);
   }
