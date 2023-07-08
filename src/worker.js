@@ -11,39 +11,37 @@
  *
  * Learn more at https://developers.cloudflare.com/workers/
  */
-// const axiosClient = require('axiosClient');
-// const retry = require('async-retry');
-// const {
-// 	transformGitHubEventData,
-// 	transformWrappeEventToMoment,
-// } = require('./transform');
-import axios from 'axios'
-import retry from 'async-retry'
+import axios from 'axios';
+import retry from 'async-retry';
 import {
 	transformGitHubEventData,
 	transformWrappeEventToMoment,
-} from './transform'
-import fetchAdapter from "@haverstack/axios-fetch-adapter";
+} from './transform';
+import fetchAdapter from '@haverstack/axios-fetch-adapter';
+import { Octokit } from '@octokit/core';
 
 const axiosClient = axios.create({
-  adapter: fetchAdapter
+	adapter: fetchAdapter,
 });
 
 class GithubEventHandler {
 	constructor(env) {
-		this.githubUsername = env.GITHUB_USERNAME
-		this.haloUsername = env.HALO_USERNAME
-		this.haloPassword = env.HALO_PASSWORD
-		this.haloUrl = env.HALO_URL
-		this.githubToken = env.GITHUB_TOKEN
+		this.githubUsername = env.GITHUB_USERNAME;
+		this.haloUsername = env.HALO_USERNAME;
+		this.haloPassword = env.HALO_PASSWORD;
+		this.haloUrl = env.HALO_URL;
+		this.githubToken = env.GITHUB_TOKEN;
 		this.eventsStateConfigMapName = 'configmap-github-user-events-state';
 		this.githubEventUrl = `https://api.github.com/users/${env.GITHUB_USERNAME}/events/public`;
+		this.octokit = new Octokit({ auth: `${env.GITHUB_TOKEN}` });
 	}
 
 	async updateEventStateConfigMap(isoDateString) {
 		return await retry(
 			async (bail) => {
-				let configMap = await this.fetchConfigMap(this.eventsStateConfigMapName);
+				let configMap = await this.fetchConfigMap(
+					this.eventsStateConfigMapName
+				);
 				if (configMap === null) {
 					throw new Error(
 						`ConfigMap ${this.eventsStateConfigMapName} not found, please create it first.`
@@ -76,6 +74,9 @@ class GithubEventHandler {
 		try {
 			const moments = transformWrappeEventToMoment(data || []);
 			for (const moment of moments) {
+				// Using Octokit to render a markdown and update it
+				await this.renderAndUpdateMarkdownUsingOctokit(moment);
+
 				const createMoment = axiosClient.post(
 					`${this.haloUrl}/apis/api.plugin.halo.run/v1alpha1/plugins/PluginMoments/moments`,
 					moment,
@@ -87,7 +88,10 @@ class GithubEventHandler {
 				const updateLastProcessedTime = this.updateEventStateConfigMap(
 					moment.spec.releaseTime
 				);
-				const values = await Promise.all([createMoment, updateLastProcessedTime]);
+				const values = await Promise.all([
+					createMoment,
+					updateLastProcessedTime,
+				]);
 				const createdMoment = values[0].data;
 				console.log(
 					'created a moment by github user public event:',
@@ -99,16 +103,34 @@ class GithubEventHandler {
 		}
 	}
 
+	async renderAndUpdateMarkdownUsingOctokit(moment) {
+		const raw = moment.spec.content.raw;
+		if (this.isEmpty(raw)) {
+			return;
+		}
+		const markdownResp = await this.octokit.request('POST /markdown', {
+			text: raw,
+			mode: "gfm",
+			headers: {
+				'X-GitHub-Api-Version': '2022-11-28',
+			},
+		});
+		if (markdownResp.status !== 200) {
+			return;
+		}
+		moment.spec.content.html = markdownResp.data;
+	}
+
 	// 定义轮询函数
 	async pollData() {
-		console.info('Fetch github user public events...',this.githubEventUrl);
+		console.info('Fetch github user public events...', this.githubEventUrl);
 		try {
 			const response = await axiosClient.get(this.githubEventUrl, {
 				headers: {
 					'X-GitHub-Api-Version': '2022-11-28',
 					Authorization: `Bearer ${this.githubToken}`,
 					Accept: 'application/vnd.github+json',
-					'User-Agent': 'GuQing-CF-Worker'
+					'User-Agent': 'GuQing-CF-Worker',
 				},
 			});
 			const data = response.data;
@@ -135,7 +157,7 @@ class GithubEventHandler {
 
 	async getLastProcessdTimeString() {
 		const configMap = await this.fetchConfigMap(this.eventsStateConfigMapName);
-		if (!configMap || !configMap.data) {
+		if (!configMap?.data) {
 			return null;
 		}
 		return configMap.data['last-time-created-event'] || null;
@@ -151,8 +173,8 @@ class GithubEventHandler {
 			);
 			return response.data;
 		} catch (error) {
-			console.log(error)
-			if(error.response && error.response.status === 404) {
+			console.log(error);
+			if (error.response && error.response.status === 404) {
 				return null;
 			}
 			throw new Error(error);
@@ -192,8 +214,10 @@ class GithubEventHandler {
 			timeout: 10000,
 			headers: {
 				'Content-Type': 'application/json',
-				'Authorization': `Basic ${btoa(this.haloUsername + ':' + this.haloPassword)}`
-			}
+				Authorization: `Basic ${btoa(
+					this.haloUsername + ':' + this.haloPassword
+				)}`,
+			},
 		};
 	}
 
@@ -211,8 +235,7 @@ export default {
 	async scheduled(event, env, ctx) {
 		// A Cron Trigger can make requests to other endpoints on the Internet,
 		// publish to a Queue, query a D1 Database, and much more.
-		console.log('env: ', env)
-		const githubEventHandler = new GithubEventHandler(env)
+		const githubEventHandler = new GithubEventHandler(env);
 		await githubEventHandler.pollData();
 
 		// You could store this result in KV, write to a D1 Database, or publish to a Queue.
