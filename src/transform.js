@@ -9,7 +9,7 @@ const transformGitHubEventData = function (events) {
     .map((event) => {
       let title = "";
       let content = "";
-      const displayLogin = `<a href="${event.actor?.url}">${event.actor?.display_login}</a>`;
+      const displayLogin = `<a href="https://github.com/${event.actor?.login}" target="_blank">${event.actor?.display_login}</a>`;
       switch (event.type) {
         case "CommitCommentEvent":
           title = `${displayLogin} commented on commit ${
