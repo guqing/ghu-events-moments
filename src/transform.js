@@ -144,7 +144,7 @@ const transformGitHubEventData = function (events) {
           content = event.payload.comment.body;
           break;
         case "PushEvent":
-          title = `${displayLogin} pushed to ${removeStart(event.payload.ref)} in ${wrapRepo(
+          title = `${displayLogin} pushed to ${removeStart(event.payload.ref, 'refs/heads/')} in ${wrapRepo(
             event.repo
           )}`;
           content =
