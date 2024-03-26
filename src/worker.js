@@ -78,7 +78,7 @@ class GithubEventHandler {
 				await this.renderAndUpdateMarkdownUsingOctokit(moment);
 
 				const createMoment = axiosClient.post(
-					`${this.haloUrl}/apis/api.plugin.halo.run/v1alpha1/plugins/PluginMoments/moments`,
+					`${this.haloUrl}/apis/console.api.moment.halo.run/v1alpha1/moments`,
 					moment,
 					{
 						...this.haloRequestOptions(),
