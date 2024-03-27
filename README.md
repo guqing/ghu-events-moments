@@ -2,10 +2,9 @@
 
 使用此仓库需要先安装 [plugin-moments](https://github.com/halo-sigs/plugin-moments) 插件且是需要支持 Tag 功能的版本。
 
-部署到 CloudFlare 的 Worker 后需要填写环境变量：
+部署到 CloudFlare 的 Worker 后需要填写环境变量，或者修改 `wrangler.toml` 文件中的 `vars` 字段。
 
-- HALO_USERNAME: 博客的用户名
-- HALO_PASSWORD: 博客的密码
+- HALO_TOKEN: 博客的个人令牌
 - HALO_URL: 博客的域名
 - GITHUB_TOKEN: GitHub 的 Personal Access Token 需要用来获取用户的 events 信息，GitHub 对没有 token 的 API 访问会有限制
 - GITHUB_USERNAME: GitHub 的用户名
