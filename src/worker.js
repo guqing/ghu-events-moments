@@ -27,8 +27,7 @@ const axiosClient = axios.create({
 class GithubEventHandler {
 	constructor(env) {
 		this.githubUsername = env.GITHUB_USERNAME;
-		this.haloUsername = env.HALO_USERNAME;
-		this.haloPassword = env.HALO_PASSWORD;
+		this.halo_pat = env.HALO_TOKEN;
 		this.haloUrl = env.HALO_URL;
 		this.githubToken = env.GITHUB_TOKEN;
 		this.eventsStateConfigMapName = 'configmap-github-user-events-state';
@@ -77,7 +76,7 @@ class GithubEventHandler {
 				// Using Octokit to render a markdown and update it
 				await this.renderAndUpdateMarkdownUsingOctokit(moment);
 
-				const createMoment = axiosClient.post(
+				const createdMoment = await axiosClient.post(
 					`${this.haloUrl}/apis/console.api.moment.halo.run/v1alpha1/moments`,
 					moment,
 					{
@@ -85,21 +84,16 @@ class GithubEventHandler {
 					}
 				);
 
-				const updateLastProcessedTime = this.updateEventStateConfigMap(
+				await this.updateEventStateConfigMap(
 					moment.spec.releaseTime
 				);
-				const values = await Promise.all([
-					createMoment,
-					updateLastProcessedTime,
-				]);
-				const createdMoment = values[0].data;
 				console.log(
 					'created a moment by github user public event:',
-					createdMoment
+					createdMoment.data
 				);
 			}
 		} catch (error) {
-			console.error('Failed to sync data:', error);
+			console.error('Failed to sync data to halo moment:', error);
 		}
 	}
 
@@ -130,7 +124,7 @@ class GithubEventHandler {
 					'X-GitHub-Api-Version': '2022-11-28',
 					Authorization: `Bearer ${this.githubToken}`,
 					Accept: 'application/vnd.github+json',
-					'User-Agent': 'GuQing-CF-Worker',
+					'User-Agent': githubUsername +'-CF-Worker',
 				},
 			});
 			const data = response.data;
@@ -173,7 +167,7 @@ class GithubEventHandler {
 			);
 			return response.data;
 		} catch (error) {
-			console.log(error);
+			console.log('Fetch configmap error:', error);
 			if (error.response && error.response.status === 404) {
 				return null;
 			}
@@ -214,9 +208,7 @@ class GithubEventHandler {
 			timeout: 10000,
 			headers: {
 				'Content-Type': 'application/json',
-				Authorization: `Basic ${btoa(
-					this.haloUsername + ':' + this.haloPassword
-				)}`,
+				Authorization: `Bearer ${this.halo_pat}`,
 			},
 		};
 	}
