@@ -124,7 +124,7 @@ class GithubEventHandler {
 					'X-GitHub-Api-Version': '2022-11-28',
 					Authorization: `Bearer ${this.githubToken}`,
 					Accept: 'application/vnd.github+json',
-					'User-Agent': githubUsername +'-CF-Worker',
+					'User-Agent': this.githubUsername +'-CF-Worker',
 				},
 			});
 			const data = response.data;

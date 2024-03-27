@@ -10,5 +10,5 @@ crons = ["*/30 * * * *"] # run every 30 minute
 
 [vars]
 GITHUB_USERNAME = "guqing"
-HALO_URL = "https://guqing.xyz"
+HALO_URL = "https://guqing.io"
 HALO_USERNAME = "guqing"
